@@ -1,4 +1,6 @@
-annotators = tokenize,ssplit,quote,ner,parse
+annotators = quote
 
-outputFormat = serialized
+outputFormat = json
+
+quote.attributeQuotes: false
 
