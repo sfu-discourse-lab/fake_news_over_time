@@ -512,18 +512,24 @@ class QuoteExtractor:
             traceback.print_exc()
 
 
-    def run_pair(self, pair: tuple[str, Doc]):
-        id, doc = pair
+    def run_once_concurrently(self, args: tuple[str, Doc]):
+        id, doc = args
         return self.run(id, doc)
 
 
     def run_multiple(self, ids: Iterable[str], texts: Iterable[str]):
-        processed_texts = [utils.preprocess_text(text) for text in texts]
+        print("Preprocessing texts...")
+        with ThreadPoolExecutor() as executor:
+            processed_texts = list(executor.map(utils.preprocess_text, texts))
+        
+        print("Creating spacy docs...")
         docs = list(self.nlp.pipe(processed_texts))
 
-        pairs = list(zip(ids, docs))
+        args = list(zip(ids, docs))
         
+        print("Extracting quotes")
         with ThreadPoolExecutor() as executor:
-            results = executor.map(self.run_pair, pairs)
+            results = executor.map(self.run_once_concurrently, args)
 
+        print("Done extracting quotes")
         return list(chain.from_iterable(results))

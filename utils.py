@@ -231,7 +231,8 @@ def fix_journalistic_multi_paragraph_quotes(text: str):
     
     fixed_text = text
 
-    for quote, fixed_quote in get_fixed_quotes(text):
+    fixed_quotes = get_fixed_quotes(text)
+    for quote, fixed_quote in fixed_quotes:
         fixed_text = fixed_text.replace(quote, fixed_quote)
     
     return fixed_text
@@ -268,7 +269,8 @@ def preprocess_text(txt):
     # txt = txt.replace("‘", "'")
     # txt = txt.replace("’", "'")
 
-    txt = fix_journalistic_multi_paragraph_quotes(txt)
+    # TODO: fix this running infinitely, we don't care too much for now.
+    # txt = fix_journalistic_multi_paragraph_quotes(txt)
 
     return txt
 
