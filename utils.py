@@ -269,7 +269,7 @@ def preprocess_text(txt: str):
     txt = fix_repeated_newlines(txt)
 
     # NOTE: disabled for now since it was causing problems
-    # txt = fix_journalistic_multi_paragraph_quotes(txt)
+    txt = fix_journalistic_multi_paragraph_quotes(txt)
 
     return txt
 
