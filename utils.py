@@ -199,6 +199,24 @@ def remove_titles(txt):
 
 # ========== Text Processing functions ==========
 
+repeated_newline_pattern = re.compile(r"(\s\.\n){2,}")
+
+def fix_repeated_newlines(text: str):
+    matches = list(repeated_newline_pattern.finditer(text))
+
+    # Sort based on longest string of space-dot-newline to replace those first,
+    # will avoid duplication issues.
+    matches.sort(key=lambda match: len(text[match.start():match.end()]), reverse=True)
+    
+    fixed_text = text
+
+    for match in matches:
+        match_text = text[match.start():match.end()]
+        fixed_text = fixed_text.replace(match_text, " .\n")
+    
+    return fixed_text
+
+
 journalistic_multi_paragraph_quotes_pattern = re.compile(
     rf"("                   # Start group
     rf"\""                  # Opening quote
@@ -238,7 +256,7 @@ def fix_journalistic_multi_paragraph_quotes(text: str):
     return fixed_text
 
 
-def preprocess_text(txt):
+def preprocess_text(txt: str):
     """Apply a series of cleaning operations to news text to better process
     quotes and named entities downstream.
     """
@@ -268,6 +286,8 @@ def preprocess_text(txt):
     # NOTE: We keep single quotes for now as they are very common outside quotes
     # txt = txt.replace("‘", "'")
     # txt = txt.replace("’", "'")
+
+    txt = fix_repeated_newlines(txt)
 
     # TODO: fix this running infinitely, we don't care too much for now.
     # txt = fix_journalistic_multi_paragraph_quotes(txt)

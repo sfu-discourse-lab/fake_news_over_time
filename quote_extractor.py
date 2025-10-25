@@ -527,7 +527,7 @@ class QuoteExtractor:
 
         args = list(zip(ids, docs))
         
-        print("Extracting quotes")
+        print("Extracting quotes...")
         with ThreadPoolExecutor() as executor:
             results = executor.map(self.run_once_concurrently, args)
 
