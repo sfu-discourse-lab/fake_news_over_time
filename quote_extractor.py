@@ -386,41 +386,6 @@ class QuoteExtractor:
                 last_sent = sent
         return floating_quotes
 
-    def extract_multi_paragraph_quotes(self, doc: Doc):
-        multi_paragraph_quote_starts = [token for token in doc 
-                                        if token.text == f"/{utils.MULTI_PARAGRAPH_QUOTE_MARKER}/"]
-        multi_paragraph_quote_ends = [token for token in doc 
-                                      if token.text == f"//{utils.MULTI_PARAGRAPH_QUOTE_MARKER}/"]
-        multi_paragraph_quote_markers = list(zip(multi_paragraph_quote_starts, multi_paragraph_quote_ends))
-        multi_paragraph_quote_boundaries = [(start.i + 1, end.i) for start, end in multi_paragraph_quote_markers]
-
-        def get_quote_details(start: int, end: int):
-            quote = doc[start:end].text
-            quote_token_count = end - start + 1
-
-            quote_start_char = doc[start].idx
-            quote_end_char = doc[end].idx + len(doc[end])
-            
-            quote_index = (quote_start_char, quote_end_char)
-
-            # Technically the token quote and index aren't quite correct
-            # because we are removing extra quotation marks and
-            # adding the multi-paragraph quote markers.
-            # However, this is fine for this project.
-            # If this multi-paragraph quote extraction is used elsewhere,
-            # this might need to get fixed. 
-            return {
-                "quote": quote,
-                "quote_token_count": quote_token_count,
-                "quote_index": str(quote_index),
-                "quote_type": "Multi-Paragraph",
-                "is_floating_quote": False
-            }
-
-        return [
-            get_quote_details(start, end)
-            for start, end in multi_paragraph_quote_boundaries
-        ]
 
     def extract_heuristic_quotes(self, doc):
         """
@@ -481,8 +446,7 @@ class QuoteExtractor:
         syntactic_quotes = self.extract_syntactic_quotes(doc)
         floating_quotes = self.extract_floating_quotes(doc, syntactic_quotes)
         heuristic_quotes = self.extract_heuristic_quotes(doc)
-        multi_paragraph_quotes = self.extract_multi_paragraph_quotes(doc)
-        all_quotes = syntactic_quotes + floating_quotes + heuristic_quotes + multi_paragraph_quotes
+        all_quotes = syntactic_quotes + floating_quotes + heuristic_quotes
         final_quotes = self.find_global_duplicates(all_quotes)
         return final_quotes
 

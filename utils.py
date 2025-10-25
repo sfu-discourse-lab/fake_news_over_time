@@ -217,42 +217,21 @@ def fix_repeated_newlines(text: str):
     return fixed_text
 
 
-journalistic_multi_paragraph_quotes_pattern = re.compile(
-    rf"("                   # Start group
-    rf"\""                  # Opening quote
-    rf"([^\"\n]+"           # Text between the quotes
-    rf"(\n\s\.\n\s\")*"     # Newlines and spaces, then opening quote of next paragraph
-    rf")+"                  # Multiple of these paragraphs
-    rf"\""                  # Closing quote
-    rf")"                   # End group
+paragraph_quote_not_closed_pattern = re.compile(
+    r"\"[^\s]"          # Opening quotation mark and no space after it
+    r"(([^\n\"])+)"     # Quote text
+    r"\n\s\.\n\s\""     # Pattern that indicates next paragraph within same quote
 )
 
-MULTI_PARAGRAPH_QUOTE_MARKER = "MULTI_PARAGRAPH_QUOTE"
-
 def fix_journalistic_multi_paragraph_quotes(text: str):
-    def get_fixed_quotes(text: str):
-        matches = list(journalistic_multi_paragraph_quotes_pattern.finditer(text))
-
-        for match in matches:
-            start = match.start()
-            end = match.end()
-            quote = text[start:end]
-
-            num_quotation_marks = quote.count('"')
-            if num_quotation_marks % 2 == 0:
-                continue # Not a journalistic style multi-paragraph quote
-
-            quote_without_quotation_marks = quote.replace('"', '')
-            fixed_quote = f"/{MULTI_PARAGRAPH_QUOTE_MARKER}/ \"{quote_without_quotation_marks}\" //{MULTI_PARAGRAPH_QUOTE_MARKER}/"
-
-            yield (quote, fixed_quote)
-    
     fixed_text = text
 
-    fixed_quotes = get_fixed_quotes(text)
-    for quote, fixed_quote in fixed_quotes:
-        fixed_text = fixed_text.replace(quote, fixed_quote)
-    
+    matches = paragraph_quote_not_closed_pattern.finditer(text)
+
+    for match in matches:
+        content = match.group(1)
+        fixed_text = fixed_text.replace(content, f"{content}\"", 1)
+
     return fixed_text
 
 
@@ -289,8 +268,7 @@ def preprocess_text(txt: str):
 
     txt = fix_repeated_newlines(txt)
 
-    # TODO: fix this running infinitely, we don't care too much for now.
-    # Examples to work on. MisInfoText rows 1, 11, 20 (starting from 0).
+    # NOTE: disabled for now since it was causing problems
     # txt = fix_journalistic_multi_paragraph_quotes(txt)
 
     return txt
