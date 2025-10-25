@@ -290,6 +290,7 @@ def preprocess_text(txt: str):
     txt = fix_repeated_newlines(txt)
 
     # TODO: fix this running infinitely, we don't care too much for now.
+    # Examples to work on. MisInfoText rows 1, 11, 20 (starting from 0).
     # txt = fix_journalistic_multi_paragraph_quotes(txt)
 
     return txt

@@ -3,7 +3,6 @@ import traceback
 from statistics import mean
 from typing import Iterable, Any
 from concurrent.futures import ThreadPoolExecutor
-from itertools import chain
 
 import spacy
 from spacy.tokens.doc import Doc
@@ -532,4 +531,4 @@ class QuoteExtractor:
             results = executor.map(self.run_once_concurrently, args)
 
         print("Done extracting quotes")
-        return list(chain.from_iterable(results))
+        return list(results)
