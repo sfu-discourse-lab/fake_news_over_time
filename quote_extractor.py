@@ -1,8 +1,13 @@
 import logging
 import traceback
 from statistics import mean
+from typing import Iterable, Any
+from concurrent.futures import ThreadPoolExecutor
+from itertools import chain
 
 import spacy
+from spacy.tokens.doc import Doc
+
 import utils
 
 logger = utils.create_logger(
@@ -205,7 +210,7 @@ class QuoteExtractor:
             if not_duplicate:
                 new_quote_span_list.append([start, end])
 
-        final_quote_list = []
+        final_quote_list: list[dict[str, Any]] = []
         for idx, quote in enumerate(quote_list):
             if idx not in remove_quotes:
                 final_quote_list.append(quote)
@@ -260,7 +265,7 @@ class QuoteExtractor:
         return "".join(letters).replace("q", "Q")
 
     def extract_syntactic_quotes(self, doc):
-        quote_list = []
+        quote_list: list[dict[str, Any]] = []
         for word in doc:
             if word.dep_ in ("ccomp"):
                 if (word.right_edge.i + 1) < len(doc):
@@ -346,7 +351,7 @@ class QuoteExtractor:
         return quote_list
 
     def extract_floating_quotes(self, doc, syntactic_quotes):
-        floating_quotes = []
+        floating_quotes: list[dict[str, Any]] = []
         doc_sents = [x for x in doc.sents]
         if len(doc_sents) > 0:
             last_sent = doc_sents[0]
@@ -382,6 +387,42 @@ class QuoteExtractor:
                 last_sent = sent
         return floating_quotes
 
+    def extract_multi_paragraph_quotes(self, doc: Doc):
+        multi_paragraph_quote_starts = [token for token in doc 
+                                        if token.text == f"/{utils.MULTI_PARAGRAPH_QUOTE_MARKER}/"]
+        multi_paragraph_quote_ends = [token for token in doc 
+                                      if token.text == f"//{utils.MULTI_PARAGRAPH_QUOTE_MARKER}/"]
+        multi_paragraph_quote_markers = list(zip(multi_paragraph_quote_starts, multi_paragraph_quote_ends))
+        multi_paragraph_quote_boundaries = [(start.i + 1, end.i) for start, end in multi_paragraph_quote_markers]
+
+        def get_quote_details(start: int, end: int):
+            quote = doc[start:end].text
+            quote_token_count = end - start + 1
+
+            quote_start_char = doc[start].idx
+            quote_end_char = doc[end].idx + len(doc[end])
+            
+            quote_index = (quote_start_char, quote_end_char)
+
+            # Technically the token quote and index aren't quite correct
+            # because we are removing extra quotation marks and
+            # adding the multi-paragraph quote markers.
+            # However, this is fine for this project.
+            # If this multi-paragraph quote extraction is used elsewhere,
+            # this might need to get fixed. 
+            return {
+                "quote": quote,
+                "quote_token_count": quote_token_count,
+                "quote_index": str(quote_index),
+                "quote_type": "Multi-Paragraph",
+                "is_floating_quote": False
+            }
+
+        return [
+            get_quote_details(start, end)
+            for start, end in multi_paragraph_quote_boundaries
+        ]
+
     def extract_heuristic_quotes(self, doc):
         """
         Extract quotes that are enclosed between start and end quotation marks. This
@@ -390,7 +431,7 @@ class QuoteExtractor:
           :param Doc doc: SpaCy Doc object of the whole news file
           :returns: List of quote objects containing the quotes and other information
         """
-        quote_list = []
+        quote_list: list[dict[str, Any]] = []
         quote = False
         for word in doc:
             if str(word) == '"':
@@ -441,11 +482,12 @@ class QuoteExtractor:
         syntactic_quotes = self.extract_syntactic_quotes(doc)
         floating_quotes = self.extract_floating_quotes(doc, syntactic_quotes)
         heuristic_quotes = self.extract_heuristic_quotes(doc)
-        all_quotes = syntactic_quotes + floating_quotes + heuristic_quotes
+        multi_paragraph_quotes = self.extract_multi_paragraph_quotes(doc)
+        all_quotes = syntactic_quotes + floating_quotes + heuristic_quotes + multi_paragraph_quotes
         final_quotes = self.find_global_duplicates(all_quotes)
         return final_quotes
 
-    def run(self, id: str, text: str):
+    def run(self, id: str, text: str | Doc):
         """Run quote extraction on a MongoDB document, and write quotes to a specified collection in the database"""
         try:
             text_length = len(text)
@@ -453,9 +495,12 @@ class QuoteExtractor:
                 logger.warning(
                     f"Skipping document {id} due to long length {text_length} characters")
                 
-            # Process document
-            doc_text = utils.preprocess_text(text)
-            spacy_doc = self.nlp(doc_text)
+            if isinstance(text, Doc):
+                spacy_doc = text
+            else:
+                # Process document
+                doc_text = utils.preprocess_text(text)
+                spacy_doc = self.nlp(doc_text)
 
             quotes = self.extract_quotes(spacy_doc)
             
@@ -465,3 +510,20 @@ class QuoteExtractor:
                 f"Failed to process {id} due to runtime exception!"
             )
             traceback.print_exc()
+
+
+    def run_pair(self, pair: tuple[str, Doc]):
+        id, doc = pair
+        return self.run(id, doc)
+
+
+    def run_multiple(self, ids: Iterable[str], texts: Iterable[str]):
+        processed_texts = [utils.preprocess_text(text) for text in texts]
+        docs = list(self.nlp.pipe(processed_texts))
+
+        pairs = list(zip(ids, docs))
+        
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(self.run_pair, pairs)
+
+        return list(chain.from_iterable(results))

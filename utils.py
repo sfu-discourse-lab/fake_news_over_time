@@ -199,6 +199,43 @@ def remove_titles(txt):
 
 # ========== Text Processing functions ==========
 
+journalistic_multi_paragraph_quotes_pattern = re.compile(
+    rf"("                   # Start group
+    rf"\""                  # Opening quote
+    rf"([^\"\n]+"           # Text between the quotes
+    rf"(\n\s\.\n\s\")*"     # Newlines and spaces, then opening quote of next paragraph
+    rf")+"                  # Multiple of these paragraphs
+    rf"\""                  # Closing quote
+    rf")"                   # End group
+)
+
+MULTI_PARAGRAPH_QUOTE_MARKER = "MULTI_PARAGRAPH_QUOTE"
+
+def fix_journalistic_multi_paragraph_quotes(text: str):
+    def get_fixed_quotes(text: str):
+        matches = list(journalistic_multi_paragraph_quotes_pattern.finditer(text))
+
+        for match in matches:
+            start = match.start()
+            end = match.end()
+            quote = text[start:end]
+
+            num_quotation_marks = quote.count('"')
+            if num_quotation_marks % 2 == 0:
+                continue # Not a journalistic style multi-paragraph quote
+
+            quote_without_quotation_marks = quote.replace('"', '')
+            fixed_quote = f"/{MULTI_PARAGRAPH_QUOTE_MARKER}/ \"{quote_without_quotation_marks}\" //{MULTI_PARAGRAPH_QUOTE_MARKER}/"
+
+            yield (quote, fixed_quote)
+    
+    fixed_text = text
+
+    for quote, fixed_quote in get_fixed_quotes(text):
+        fixed_text = fixed_text.replace(quote, fixed_quote)
+    
+    return fixed_text
+
 
 def preprocess_text(txt):
     """Apply a series of cleaning operations to news text to better process
@@ -230,6 +267,9 @@ def preprocess_text(txt):
     # NOTE: We keep single quotes for now as they are very common outside quotes
     # txt = txt.replace("‘", "'")
     # txt = txt.replace("’", "'")
+
+    txt = fix_journalistic_multi_paragraph_quotes(txt)
+
     return txt
 
 
