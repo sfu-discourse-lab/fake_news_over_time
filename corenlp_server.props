@@ -1,6 +1,0 @@
-annotators = quote
-
-outputFormat = json
-
-quote.attributeQuotes: false
-
