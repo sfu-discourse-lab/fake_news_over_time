@@ -447,7 +447,12 @@ class QuoteExtractor:
         floating_quotes = self.extract_floating_quotes(doc, syntactic_quotes)
         heuristic_quotes = self.extract_heuristic_quotes(doc)
         all_quotes = syntactic_quotes + floating_quotes + heuristic_quotes
+        
         final_quotes = self.find_global_duplicates(all_quotes)
+        
+        for quote in final_quotes:
+            quote["proportion_of_total_tokens"] = quote["quote_token_count"] / len(doc)
+        
         return final_quotes
 
     def run(self, id: str, text: str | Doc):
