@@ -1,9 +1,10 @@
 import os
 from typing import Any
-from pandas import DataFrame
+import pandas as pd
+from wordcloud import WordCloud
 
 
-def get_groups(df: DataFrame, col: str):
+def get_groups(df: pd.DataFrame, col: str):
     grouped = df.groupby(by=col)
 
     keys = list(grouped.groups.keys())
@@ -42,3 +43,30 @@ def make_output_path_for_type(dataset_config: dict[str, Any], type: str, linguis
     )
 
     return output_path
+
+
+def generate_wordclouds_for_years(filename: str, text_col: str, count_col: str):
+    """This function is used in the word cloud generation notebooks."""
+
+    excel_file = pd.ExcelFile(filename)
+
+    for year in excel_file.sheet_names:
+        df = pd.read_excel(excel_file, sheet_name=year)
+        df = df.dropna(subset=[text_col])
+
+        # Sometimes we don't have any entities in a file
+        # (usually in the social media headlines).
+        if df.shape[0] == 0:
+            continue
+        
+        frequencies = dict(zip(df[text_col], df[count_col]))
+        
+        wordcloud = WordCloud(
+            width=800, 
+            height=400,
+            font_path="./Lato-Regular.ttf", # Using the open source Lato font
+            colormap="managua",
+            background_color="white")\
+            .generate_from_frequencies(frequencies)
+
+        yield year, wordcloud
