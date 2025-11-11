@@ -1,6 +1,7 @@
 import os
 from typing import Any
 import pandas as pd
+from spacy.tokens.token import Token
 from wordcloud import WordCloud
 
 
@@ -70,3 +71,7 @@ def generate_wordclouds_for_years(filename: str, text_col: str, count_col: str):
             .generate_from_frequencies(frequencies)
 
         yield year, wordcloud
+
+
+def is_word(token: Token):
+    return not (token.is_punct or token.is_space)
