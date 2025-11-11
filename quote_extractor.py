@@ -6,8 +6,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 import spacy
 from spacy.tokens.doc import Doc
+from spacy.tokens.span import Span
 
 import utils
+from helpers import is_word
 
 logger = utils.create_logger(
     "quote_extractor",
@@ -61,7 +63,7 @@ class QuoteExtractor:
         else:
             return False
 
-    def find_sent_in_double_quotes(self, doc_sents, i):
+    def find_sent_in_double_quotes(self, doc_sents: list[Span], i: int):
         """
         When detecting a sentence which is the candidate for start of a floating quote we use this function to
         look into next sentences to see if this floating quote candidate consists of more than one sentence.
@@ -75,6 +77,7 @@ class QuoteExtractor:
         sents_processed = 1
         quote_startchar = sent.start_char
         quote_token_count = len(sent)
+        quote_word_count = sum(1 for token in sent if is_word(token))
 
         if '"' not in sent_string[0:3]:
             return 1, False, None
@@ -88,6 +91,7 @@ class QuoteExtractor:
                 "verb": "",
                 "verb_index": "",
                 "quote_token_count": quote_token_count,
+                "quote_word_count": quote_word_count,
                 "quote_type": "QCQ",
                 "is_floating_quote": True,
             }
@@ -97,6 +101,7 @@ class QuoteExtractor:
         float_quote = str(sent)
         quote_startchar = sent.start_char
         quote_token_count = len(sent)
+        quote_word_count = sum(1 for token in sent if is_word(token))
         # Try to find a floating quote in multiple sentences.
         while (i + sents_processed) < len(
             doc_sents
@@ -115,6 +120,7 @@ class QuoteExtractor:
             float_quote += str(next_sent)
             sents_processed += 1
             quote_token_count += len(next_sent)
+            quote_word_count += sum(1 for token in next_sent if is_word(token))
             if next_sent_has_only_one_quote_at_end:
                 quote_endchar = next_sent.end_char
                 quote_obj = {
@@ -125,6 +131,7 @@ class QuoteExtractor:
                     "verb": "",
                     "verb_index": "",
                     "quote_token_count": quote_token_count,
+                    "quote_word_count": quote_word_count,
                     "quote_type": "QCQ",
                     "is_floating_quote": True,
                 }
@@ -263,7 +270,7 @@ class QuoteExtractor:
         letters.sort(key=keydict.get)
         return "".join(letters).replace("q", "Q")
 
-    def extract_syntactic_quotes(self, doc):
+    def extract_syntactic_quotes(self, doc: Doc):
         quote_list: list[dict[str, Any]] = []
         for word in doc:
             if word.dep_ in ("ccomp"):
@@ -314,6 +321,7 @@ class QuoteExtractor:
                                             "verb": str(verb),
                                             "verb_index": self.get_pretty_index(verb),
                                             "quote_token_count": len(sent),
+                                            "quote_word_count": sum(1 for token in sent if is_word(token)),
                                             "quote_type": quote_type,
                                             "is_floating_quote": False,
                                         }
@@ -343,6 +351,7 @@ class QuoteExtractor:
                         "verb": "according to",
                         "verb_index": self.get_pretty_index(expression),
                         "quote_token_count": len(sent),
+                        "quote_word_count": sum(1 for token in sent if is_word(token)),
                         "quote_type": "AccordingTo",
                         "is_floating_quote": False,
                     }
@@ -429,6 +438,7 @@ class QuoteExtractor:
                             "verb": verb,
                             "verb_index": verb_index,
                             "quote_token_count": len(sent),
+                            "quote_word_count": sum(1 for token in sent if is_word(token)),
                             "quote_type": "Heuristic",
                             "is_floating_quote": False,
                         }
@@ -452,6 +462,7 @@ class QuoteExtractor:
         
         for quote in final_quotes:
             quote["proportion_of_total_tokens"] = quote["quote_token_count"] / len(doc)
+            quote["proportion_of_total_words"] = quote["quote_word_count"] / sum(1 for token in doc if is_word(token))
         
         return final_quotes
 
