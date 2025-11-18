@@ -1,6 +1,7 @@
 BASE_CONFIG = {
     "sheet_name": "Working",
     "text_col": "originalBodyText",
+    "headline_col": "originalHeadline",
     "year_col": "originalDateYear",
     "type_col": "originalTextType",
     "output_dir": "Analysis_output"
