@@ -60,7 +60,43 @@ def load_data():
     return df
 
 
+def get_years_dfs(file_path: str):
+    """Get separate dataframes for each year in an analysis output. 
+    Skip any summary-type sheet."""
+
+
+    excel_file = pd.ExcelFile(file_path)
+
+    return [
+        pd.read_excel(excel_file, sheet_name=sheet)
+        for sheet in excel_file.sheet_names
+        if str(sheet).isdigit()
+    ]
+    
+
+    # def generator():
+    #     # Generator that goes through each year sheet,
+    #     # adds a year column, then returns the dataframe
+        
+    #     for sheet in excel_file.sheet_names:
+    #         if sheet == "Summary":
+    #             continue
+            
+    #         df = pd.read_excel(excel_file, sheet_name=sheet)
+
+    #         # Add year column
+    #         df["year"] = sheet
+
+    #         yield df
+    
+    # # Create a list from the generator and return
+    # return list(generator())
+
+
 def get_groups(df: pd.DataFrame, col: str):
+    """Separate dataframes into groups. 
+    Returns the group names and the separated dataframes."""
+    
     grouped = df.groupby(by=col)
 
     keys = list(grouped.groups.keys())
