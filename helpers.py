@@ -1,9 +1,11 @@
-import os
 from typing import Any
 import pandas as pd
 from spacy.tokens.token import Token
 from wordcloud import WordCloud
 from scipy.stats import normaltest, levene, f_oneway, kruskal
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 
 
 def load_misinfotext():
@@ -64,7 +66,6 @@ def get_years_dfs(file_path: str):
     """Get separate dataframes for each year in an analysis output. 
     Skip any summary-type sheet."""
 
-
     excel_file = pd.ExcelFile(file_path)
 
     return [
@@ -72,25 +73,47 @@ def get_years_dfs(file_path: str):
         for sheet in excel_file.sheet_names
         if str(sheet).isdigit()
     ]
+
+
+# Manually decided to exclude these
+custom_stopwords = [
+    "also",
+    "could",
+    "would",
+    "even",
+    "get",
+    "like",
+    "000",
+    "one",
+]
+
+
+def load_stop_word_list():
+    """Load NLTK stopwords and use custom stop words."""
+
+    nltk.download("stopwords")
+
+    nltk_stopwords = stopwords.words("english")
+
+    full_stopword_list = list(set(nltk_stopwords + custom_stopwords))
+
+    return full_stopword_list
+
+
+def is_all_stop_words(text: str, stopword_list: list[str]=None):
+    """Check if a span of text is made up of only stop words.
+    Stop words count as any stop words in the provided list (or default, if None),
+    as well as if the text has no alphabetical characters."""
     
-
-    # def generator():
-    #     # Generator that goes through each year sheet,
-    #     # adds a year column, then returns the dataframe
-        
-    #     for sheet in excel_file.sheet_names:
-    #         if sheet == "Summary":
-    #             continue
-            
-    #         df = pd.read_excel(excel_file, sheet_name=sheet)
-
-    #         # Add year column
-    #         df["year"] = sheet
-
-    #         yield df
+    if stopword_list is None:
+        stopword_list = load_stop_word_list()
     
-    # # Create a list from the generator and return
-    # return list(generator())
+    # If text doesn't have any letters at all, mark it as stopword
+    if not any(char.isalpha() for char in text):
+        return True
+
+    tokens = word_tokenize(text)
+    return all(token in stopword_list for token in tokens)
 
 
 def get_groups(df: pd.DataFrame, col: str):
